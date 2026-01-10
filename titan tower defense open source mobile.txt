@@ -1,0 +1,1168 @@
+-- ==============================================================================
+-- 🔒 1. AUTHENTICATION & NOTIFICATION SYSTEM (LIVE SYNC)
+-- GAME: TITAN TOWER DEFENSE
+-- FIXED: Mouse Tracker Visible + Mobile Draggable Button + Force Save Spot
+-- ==============================================================================
+
+-- [[ AUTO-EXECUTE ON RETRY LOGIC ]] --
+local queueteleport = (syn and syn.queue_on_teleport) or queue_on_teleport or (fluxus and fluxus.queue_on_teleport)
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local lp = Players.LocalPlayer
+
+-- Try to save this script to a file so it can be re-run on teleport
+local scriptName = "TitanMacroAuto.lua" 
+if writefile then
+    -- Note: This attempts to save the running script to be used by queue_on_teleport
+end
+
+Players.LocalPlayer.OnTeleport:Connect(function(State)
+    if queueteleport then
+         queueteleport('loadstring(game:HttpGet("https://raw.githubusercontent.com/chris4you-design/titan-tower-defense/refs/heads/main/obfuscated_script-1767969544848.lua"))()')
+        
+        if isfile and isfile(scriptName) then
+             queueteleport(readfile(scriptName))
+        end
+    end
+end)
+
+-- Wait for Game to Load
+if not game:IsLoaded() then game.Loaded:Wait() end
+
+local CoreGui = game:GetService("CoreGui")
+local HttpService = game:GetService("HttpService")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local UIS = game:GetService("UserInputService")
+local VIM = game:GetService("VirtualInputManager")
+local Workspace = game:GetService("Workspace")
+local GuiService = game:GetService("GuiService")
+
+-- GLOBAL VARIABLE TO STORE LIVE EXPIRY TIME
+local CurrentExpiryTime = 0 
+
+-- DETECT PLATFORM
+local DetectedPlatform = "PC"
+if UIS.TouchEnabled and not UIS.MouseEnabled then
+    DetectedPlatform = "Mobile"
+end
+
+-- Clean up old GUIs
+pcall(function()
+    if CoreGui:FindFirstChild("LoginSystemV1") then CoreGui.LoginSystemV1:Destroy() end
+    if CoreGui:FindFirstChild("SkibidiMacroV1") then CoreGui.SkibidiMacroV1:Destroy() end
+    if CoreGui:FindFirstChild("AuthNotify") then CoreGui.AuthNotify:Destroy() end
+    if CoreGui:FindFirstChild("TitanUpdateLog") then CoreGui.TitanUpdateLog:Destroy() end -- Clean old popup
+    if CoreGui:FindFirstChild("MobileToggleBtn") then CoreGui.MobileToggleBtn:Destroy() end
+end)
+
+-- 1. NOTIFICATION SYSTEM
+local NotifyGui = Instance.new("ScreenGui")
+NotifyGui.Name = "AuthNotify"
+NotifyGui.Parent = CoreGui
+NotifyGui.IgnoreGuiInset = true
+NotifyGui.DisplayOrder = 1000 
+
+function ShowNotification(text)
+    for _, v in pairs(NotifyGui:GetChildren()) do
+        if v:IsA("Frame") then
+            game:GetService("TweenService"):Create(v, TweenInfo.new(0.3), {BackgroundTransparency = 1}):Play()
+            for _, t in pairs(v:GetChildren()) do
+                if t:IsA("TextLabel") then
+                    game:GetService("TweenService"):Create(t, TweenInfo.new(0.3), {TextTransparency = 1}):Play()
+                end
+            end
+            task.delay(0.3, function() v:Destroy() end)
+        end
+    end
+
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(0, 300, 0, 50)
+    frame.Position = UDim2.new(0.5, -150, -0.2, 0)
+    frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    frame.BorderSizePixel = 0
+    frame.Parent = NotifyGui
+    Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 8)
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1,0,1,0)
+    label.BackgroundTransparency = 1
+    label.Text = "🔔 " .. text
+    label.TextColor3 = Color3.fromRGB(255, 255, 255)
+    label.Font = Enum.Font.GothamBold
+    label.TextSize = 14
+    label.TextWrapped = true
+    label.Parent = frame
+
+    frame:TweenPosition(UDim2.new(0.5, -150, 0.1, 0), "Out", "Quad", 0.5)
+    task.delay(4, function()
+        if frame then
+            frame:TweenPosition(UDim2.new(0.5, -150, -0.2, 0), "In", "Quad", 0.5)
+            task.wait(0.6)
+            frame:Destroy()
+        end
+    end)
+end
+
+-- 2. SETUP LOGIN GUI
+local LoginScreen = Instance.new("ScreenGui")
+LoginScreen.Name = "LoginSystemV1"
+LoginScreen.Parent = CoreGui
+LoginScreen.IgnoreGuiInset = true
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Size = UDim2.fromOffset(300, 250)
+MainFrame.Position = UDim2.fromScale(0.5, 0.5)
+MainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+MainFrame.BorderSizePixel = 0
+MainFrame.Parent = LoginScreen
+Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 12)
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, 0, 0, 40)
+Title.BackgroundTransparency = 1
+Title.Text = "Titan Auth System"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 20
+Title.Parent = MainFrame
+
+local UserBox = Instance.new("TextBox")
+UserBox.Size = UDim2.new(0.8, 0, 0, 40)
+UserBox.Position = UDim2.new(0.1, 0, 0.25, 0)
+UserBox.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+UserBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+UserBox.Text = "free"
+UserBox.PlaceholderText = "Username (Hint: free)"
+UserBox.Font = Enum.Font.Gotham
+UserBox.TextSize = 14
+UserBox.Parent = MainFrame
+Instance.new("UICorner", UserBox).CornerRadius = UDim.new(0, 8)
+
+local PassBox = Instance.new("TextBox")
+PassBox.Size = UDim2.new(0.8, 0, 0, 40)
+PassBox.Position = UDim2.new(0.1, 0, 0.45, 0)
+PassBox.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+PassBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+PassBox.Text = "free"
+PassBox.PlaceholderText = "Password (Hint: free)"
+PassBox.Font = Enum.Font.Gotham
+PassBox.TextSize = 14
+PassBox.Parent = MainFrame
+Instance.new("UICorner", PassBox).CornerRadius = UDim.new(0, 8)
+
+local ActionButton = Instance.new("TextButton")
+ActionButton.Size = UDim2.new(0.8, 0, 0, 40)
+ActionButton.Position = UDim2.new(0.1, 0, 0.7, 0)
+ActionButton.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+ActionButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+ActionButton.Text = "LOGIN"
+ActionButton.Font = Enum.Font.GothamBold
+ActionButton.TextSize = 16
+ActionButton.Parent = MainFrame
+Instance.new("UICorner", ActionButton).CornerRadius = UDim.new(0, 8)
+
+local StatusLabel = Instance.new("TextLabel")
+StatusLabel.Size = UDim2.new(1, 0, 0, 20)
+StatusLabel.Position = UDim2.new(0, 0, 0.9, 0)
+StatusLabel.BackgroundTransparency = 1
+StatusLabel.Text = "Auto-Logging in..."
+StatusLabel.TextColor3 = Color3.fromRGB(255, 255, 0)
+StatusLabel.Font = Enum.Font.Gotham
+StatusLabel.TextSize = 12
+StatusLabel.Parent = MainFrame
+
+-- 3. AUTH LOGIC (FIXED FOR UNIX TIMESTAMP)
+function CheckMachine()
+    local httpRequest = (syn and syn.request) or (http and http.request) or http_request or (fluxus and fluxus.request) or request
+    if not httpRequest then
+        StatusLabel.Text = "Executor Error: No HTTP Support"
+        return nil
+    end
+
+    local ClientID = game:GetService("RbxAnalyticsService"):GetClientId()
+    local FIREBASE_URL = "https://titan-tower-defense-default-rtdb.firebaseio.com/users/" .. ClientID .. ".json"
+      
+    local response = httpRequest({ Url = FIREBASE_URL, Method = "GET" })
+    if not response or not response.Body then return nil end
+
+    local data = (response.Body ~= "null") and HttpService:JSONDecode(response.Body) or nil
+    local osTime = os.time()
+
+    if not data then
+        -- New User: 48 Hours relative to NOW
+        local newData = {
+            ["AccountName"] = lp.Name,
+            ["HWID"] = ClientID,
+            ["ExpiryTime"] = osTime + (48 * 3600),
+            ["TotalLogins"] = 1,
+            ["Banned"] = false,
+            ["Message"] = "",
+            ["Platform"] = DetectedPlatform,
+            ["LastActive"] = osTime
+        }
+        httpRequest({
+            Url = FIREBASE_URL, Method = "PUT",
+            Headers = { ["Content-Type"] = "application/json" },
+            Body = HttpService:JSONEncode(newData)
+        })
+        CurrentExpiryTime = newData.ExpiryTime
+        return true
+    end
+
+    CurrentExpiryTime = data.ExpiryTime
+
+    if data.Banned == true or data.Banned == "true" then return "BANNED" end
+    if osTime > CurrentExpiryTime then return "EXPIRED" end
+
+    -- Update Last Active for Panel Online Status
+    httpRequest({
+        Url = FIREBASE_URL, Method = "PATCH",
+        Headers = { ["Content-Type"] = "application/json" },
+        Body = HttpService:JSONEncode({
+            ["TotalLogins"] = (data.TotalLogins or 1) + 1,
+            ["AccountName"] = lp.Name,
+            ["Platform"] = DetectedPlatform,
+            ["LastActive"] = osTime
+        })
+    })
+
+    return true
+end
+
+-- 4. BACKGROUND LISTENER (FIXED HEARTBEAT)
+function StartBackgroundChecks()
+    task.spawn(function()
+        local ClientID = game:GetService("RbxAnalyticsService"):GetClientId()
+        local FIREBASE_URL = "https://titan-tower-defense-default-rtdb.firebaseio.com/users/" .. ClientID .. ".json"
+          
+        local httpRequest = (syn and syn.request) or (http and http.request) or http_request or (fluxus and fluxus.request) or request
+        local lastMsg = ""
+
+        while true do
+            task.wait(5) -- Update every 5 seconds
+            pcall(function()
+                local response = httpRequest({ Url = FIREBASE_URL, Method = "GET" })
+                if response and response.Body and response.Body ~= "null" then
+                    local data = HttpService:JSONDecode(response.Body)
+                    local osTime = os.time()
+                     
+                    if data.ExpiryTime then CurrentExpiryTime = data.ExpiryTime end
+
+                    if data.Banned == true or data.Banned == "true" then 
+                        lp:Kick("⛔ TERMINATED: You have been banned by the Administrator.") 
+                    end
+                     
+                    if osTime > CurrentExpiryTime then 
+                        lp:Kick("⚠️ TRIAL EXPIRED: Your time is up! Ask the admin to Reactivate your key.")
+                    end
+
+                    -- Heartbeat: Update LastActive
+                    httpRequest({
+                        Url = FIREBASE_URL,
+                        Method = "PATCH",
+                        Headers = { ["Content-Type"] = "application/json" },
+                        Body = HttpService:JSONEncode({ ["LastActive"] = osTime })
+                    })
+                end
+            end)
+        end
+    end)
+end
+
+ActionButton.MouseButton1Click:Connect(function()
+    local u = UserBox.Text
+    local p = PassBox.Text
+    if u == "free" and p == "free" then
+        local status = CheckMachine()
+        if status == true then
+            LoginScreen:Destroy()
+            StartBackgroundChecks()
+            LoadMainMacro()
+        end
+    end
+end)
+
+task.spawn(function()
+    task.wait(0.5) 
+    StatusLabel.Text = "Auto-Authenticating..."
+    local status = CheckMachine() 
+    if status == true then
+         StatusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+         StatusLabel.Text = "Authorized!"
+         task.wait(0.5)
+         if LoginScreen then LoginScreen:Destroy() end
+         StartBackgroundChecks()
+         LoadMainMacro()
+    elseif status == "BANNED" then
+         lp:Kick("BANNED")
+    elseif status == "EXPIRED" then
+         lp:Kick("EXPIRED")
+    else
+         StatusLabel.Text = "Auto-Login Failed. Click Login."
+    end
+end)
+
+
+-- ==============================================================================
+-- 🚀 2. MACRO LOGIC (TITAN MOBILE)
+-- ==============================================================================
+function LoadMainMacro()
+    print("Loading Titan Macro...")
+    
+    -- ===============================================
+    -- 🆕 WHAT'S NEW POPUP LOGIC (SHOWS ONCE)
+    -- ===============================================
+    local CURRENT_VERSION = "v1.7_MobileFixed" -- Updated
+    local VersionFile = "TitanMacro_UpdateLog.txt"
+    
+    local function CheckForUpdate()
+        local showPopup = true
+        if isfile and isfile(VersionFile) then
+            local savedVersion = readfile(VersionFile)
+            if savedVersion == CURRENT_VERSION then
+                showPopup = false
+            end
+        end
+
+        if showPopup then
+            local UpdateGui = Instance.new("ScreenGui")
+            UpdateGui.Name = "TitanUpdateLog"
+            UpdateGui.Parent = CoreGui
+            UpdateGui.IgnoreGuiInset = true
+            UpdateGui.DisplayOrder = 2000 -- On top of everything
+
+            local Main = Instance.new("Frame", UpdateGui)
+            Main.Size = UDim2.fromOffset(320, 220)
+            Main.Position = UDim2.fromScale(0.5, 0.5)
+            Main.AnchorPoint = Vector2.new(0.5, 0.5)
+            Main.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+            Main.BorderSizePixel = 0
+            Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 12)
+            
+            -- Animate In
+            Main.Position = UDim2.fromScale(0.5, 0.4)
+            Main:TweenPosition(UDim2.fromScale(0.5, 0.5), "Out", "Back", 0.5)
+
+            local Header = Instance.new("TextLabel", Main)
+            Header.Size = UDim2.new(1, 0, 0, 40)
+            Header.BackgroundTransparency = 1
+            Header.Text = "🎉 WHAT'S NEW (MOBILE)?"
+            Header.Font = Enum.Font.GothamBold
+            Header.TextSize = 18
+            Header.TextColor3 = Color3.fromRGB(255, 200, 50)
+
+            local Scroll = Instance.new("ScrollingFrame", Main)
+            Scroll.Size = UDim2.new(0.9, 0, 0.5, 0)
+            Scroll.Position = UDim2.new(0.05, 0, 0.22, 0)
+            Scroll.BackgroundTransparency = 1
+            Scroll.BorderSizePixel = 0
+            Scroll.ScrollBarThickness = 4
+
+            local Desc = Instance.new("TextLabel", Scroll)
+            Desc.Size = UDim2.new(1, 0, 1, 0) 
+            Desc.BackgroundTransparency = 1
+            Desc.TextXAlignment = Enum.TextXAlignment.Left
+            Desc.TextYAlignment = Enum.TextYAlignment.Top
+            Desc.TextWrapped = true
+            Desc.Font = Enum.Font.GothamSemibold
+            Desc.TextSize = 14
+            Desc.TextColor3 = Color3.fromRGB(220, 220, 220)
+            Desc.Text = "• HOW TO USE 🛠️\n   1. Go to the start of the level.\n   2. Click 'SAVE SPOT' first!\n   3. Then click 'REC'.\n\n• DRAGGABLE MENU BUTTON\n   - The 'M' button can now be dragged around the screen!"
+            
+            -- Resize canvas to fit text
+            Desc.Size = UDim2.new(1, 0, 0, 1000)
+            local bounds = Desc.TextBounds.Y
+            Desc.Size = UDim2.new(1, 0, 0, bounds + 20)
+            Scroll.CanvasSize = UDim2.new(0, 0, 0, bounds + 20)
+
+            local CloseBtn = Instance.new("TextButton", Main)
+            CloseBtn.Size = UDim2.new(0.8, 0, 0, 35)
+            CloseBtn.Position = UDim2.new(0.1, 0, 0.8, 0)
+            CloseBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
+            CloseBtn.Text = "GOT IT!"
+            CloseBtn.Font = Enum.Font.GothamBold
+            CloseBtn.TextSize = 14
+            CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+            Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 8)
+
+            CloseBtn.MouseButton1Click:Connect(function()
+                if writefile then
+                    writefile(VersionFile, CURRENT_VERSION)
+                end
+                Main:TweenPosition(UDim2.fromScale(0.5, 0.6), "In", "Back", 0.3)
+                task.wait(0.3)
+                UpdateGui:Destroy()
+            end)
+        end
+    end
+    
+    -- RUN THE CHECK
+    task.spawn(CheckForUpdate)
+    -- ===============================================
+
+    local REPLAY_X = 1074
+    local REPLAY_Y = 675
+    local WebhookURL = ""
+    local loopEnabled = false
+    GuiService.AutoSelectGuiEnabled = false
+
+    -- STATE MANAGEMENT
+    local StateFile = "TitanMacroState.json"
+    local LastLoadedSlot = nil
+
+    local function SaveState()
+        if writefile then
+            local data = { IsLooping = loopEnabled, Slot = LastLoadedSlot }
+            writefile(StateFile, HttpService:JSONEncode(data))
+        end
+    end
+
+    local DESTINATION = Vector3.new(0, 10, 0)
+    local SavedSpot = nil 
+
+    local playStartTime = 0
+    local macroRuns = 0
+    local recording = false
+    local playing = false
+    local macroRecorded = false
+    local macroStartTime = 0
+    local recordedActions = {}
+    local totalMacroTime = 0
+
+    local function getChar()
+        local c = lp.Character or lp.CharacterAdded:Wait()
+        return c, c:WaitForChild("Humanoid"), c:WaitForChild("HumanoidRootPart")
+    end
+
+    pcall(function()
+        if CoreGui:FindFirstChild("SkibidiMacroV1") then
+            CoreGui.SkibidiMacroV1:Destroy()
+        end
+    end)
+
+    local gui = Instance.new("ScreenGui")
+    gui.Name = "SkibidiMacroV1"
+    gui.ResetOnSpawn = false
+    gui.IgnoreGuiInset = true
+    gui.DisplayOrder = 999
+    gui.Parent = CoreGui
+
+    local tracker = Instance.new("Frame", gui)
+    tracker.Size = UDim2.fromOffset(14,14)
+    tracker.BackgroundColor3 = Color3.fromRGB(255,0,0)
+    tracker.BorderSizePixel = 0
+    tracker.AnchorPoint = Vector2.new(0.5,0.5)
+    Instance.new("UICorner", tracker).CornerRadius = UDim.new(1,0)
+    tracker.Visible = true -- VISIBLE ON MOBILE NOW
+
+    RunService.RenderStepped:Connect(function()
+        local m = UIS:GetMouseLocation()
+        tracker.Position = UDim2.fromOffset(m.X, m.Y)
+    end)
+
+    -- MAIN FRAME
+    local frame = Instance.new("Frame", gui)
+    frame.Size = UDim2.fromOffset(300, 270) -- Made taller for buttons
+    frame.Position = UDim2.fromScale(0.5,0.5)
+    frame.AnchorPoint = Vector2.new(0.5,0.5)
+    frame.BackgroundColor3 = Color3.fromRGB(20,20,20)
+    frame.Active = true
+    frame.Draggable = true
+    Instance.new("UICorner", frame).CornerRadius = UDim.new(0,12)
+
+    -- [[ MOBILE TOGGLE BUTTON ]] --
+    local toggleGui = Instance.new("ScreenGui")
+    toggleGui.Name = "MobileToggleBtn"
+    toggleGui.Parent = CoreGui
+    
+    local toggleBtn = Instance.new("TextButton", toggleGui)
+    toggleBtn.Size = UDim2.fromOffset(40, 40)
+    toggleBtn.Position = UDim2.new(1, -50, 0.3, 0) -- Right side
+    toggleBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
+    toggleBtn.Text = "M"
+    toggleBtn.Font = Enum.Font.GothamBold
+    toggleBtn.TextSize = 20
+    toggleBtn.TextColor3 = Color3.new(1,1,1)
+    toggleBtn.Active = true -- REQUIRED FOR DRAG
+    toggleBtn.Draggable = true -- MAKES IT DRAGGABLE
+    Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0,8)
+    
+    -- Short click triggers toggle, Drag triggers drag (handled by Draggable property)
+    toggleBtn.MouseButton1Click:Connect(function()
+        frame.Visible = not frame.Visible
+    end)
+
+    -- [[ GHOST MODE HELPER FUNCTION ]] --
+    local function ToggleGhostMode(enable)
+        if enable then
+            -- Make Transparent & Untouchable
+            frame.BackgroundTransparency = 0.7 -- 30% Visible
+            -- NOTE: On mobile we keep it Active so we can click STOP
+            -- We only fade visuals
+             
+            for _, v in pairs(frame:GetDescendants()) do
+                if v:IsA("GuiObject") then
+                    if v:IsA("TextLabel") or v:IsA("TextButton") or v:IsA("TextBox") then
+                        v.TextTransparency = 0.5 -- Fade Text
+                    end
+                    if v:IsA("TextButton") or v:IsA("TextBox") then
+                        v.BackgroundTransparency = 0.8 -- Fade Buttons
+                    end
+                end
+            end
+        else
+            -- Restore Normal View
+            frame.BackgroundTransparency = 0 -- Fully Visible
+            frame.Active = true 
+             
+            for _, v in pairs(frame:GetDescendants()) do
+                if v:IsA("GuiObject") then
+                    if v:IsA("TextLabel") or v:IsA("TextButton") or v:IsA("TextBox") then
+                        v.TextTransparency = 0 -- Restore Text
+                    end
+                    if v:IsA("TextButton") or v:IsA("TextBox") then
+                        v.BackgroundTransparency = 0 -- Restore Button Color
+                        v.Active = true 
+                    end
+                    if v:IsA("TextLabel") then
+                        v.BackgroundTransparency = 1 -- Keep labels transparent
+                    end
+                end
+            end
+        end
+    end
+
+    local title = Instance.new("TextLabel", frame)
+    title.Size = UDim2.new(1,0,0,35)
+    title.BackgroundTransparency = 1
+    title.Text = "Titan Macro (Mobile)"
+    title.Font = Enum.Font.GothamBold
+    title.TextSize = 18
+    title.TextColor3 = Color3.new(1,1,1)
+
+    local expiryLabel = Instance.new("TextLabel", frame)
+    expiryLabel.Size = UDim2.new(1, 0, 0, 20)
+    expiryLabel.Position = UDim2.fromOffset(0, 32)
+    expiryLabel.BackgroundTransparency = 1
+    expiryLabel.Font = Enum.Font.GothamBold
+    expiryLabel.TextColor3 = Color3.fromRGB(255, 200, 50)
+    expiryLabel.TextSize = 12
+    expiryLabel.Text = "Syncing Time..."
+      
+    task.spawn(function()
+        while frame.Parent do
+            if CurrentExpiryTime > 0 then
+                local diff = CurrentExpiryTime - os.time()
+                if diff > 0 then
+                    if diff > 150000000 then
+                        expiryLabel.Text = "♾️ LIFETIME ACCESS"
+                        expiryLabel.TextColor3 = Color3.fromRGB(50, 255, 50)
+                    else
+                        local d = math.floor(diff / 86400)
+                        local h = math.floor((diff % 86400) / 3600)
+                        local m = math.floor((diff % 3600) / 60)
+                        expiryLabel.Text = string.format("⏳ Access: %dd %dh %dm", d, h, m)
+                        expiryLabel.TextColor3 = Color3.fromRGB(255, 200, 50)
+                    end
+                else
+                    expiryLabel.Text = "⏳ Time Expired"
+                    expiryLabel.TextColor3 = Color3.fromRGB(255, 50, 50)
+                end
+            else
+                expiryLabel.Text = "⏳ Checking..."
+            end
+            task.wait(1) 
+        end
+    end)
+
+    -- [[ BUTTON CONTAINER (Replaces Old Text Info) ]]
+    local BtnContainer = Instance.new("Frame", frame)
+    BtnContainer.Position = UDim2.fromOffset(10, 55)
+    BtnContainer.Size = UDim2.new(1, -20, 0, 80)
+    BtnContainer.BackgroundTransparency = 1
+    
+    local function CreateMacroBtn(name, text, color, layoutOrder)
+        local btn = Instance.new("TextButton", BtnContainer)
+        btn.Name = name
+        btn.BackgroundColor3 = color
+        btn.Text = text
+        btn.TextColor3 = Color3.new(1,1,1)
+        btn.Font = Enum.Font.GothamBold
+        btn.TextSize = 11
+        Instance.new("UICorner", btn).CornerRadius = UDim.new(0,6)
+        return btn
+    end
+    
+    -- Grid Layout
+    local grid = Instance.new("UIGridLayout", BtnContainer)
+    grid.CellSize = UDim2.new(0.31, 0, 0.45, 0)
+    grid.CellPadding = UDim2.new(0.02, 0, 0.1, 0)
+    
+    local RecBtn = CreateMacroBtn("RecBtn", "🔴 REC", Color3.fromRGB(200, 50, 50))
+    local PlayBtn = CreateMacroBtn("PlayBtn", "▶️ PLAY", Color3.fromRGB(50, 200, 50))
+    local WalkBtn = CreateMacroBtn("WalkBtn", "🚶 WALK", Color3.fromRGB(100, 100, 100))
+    local SpotBtn = CreateMacroBtn("SpotBtn", "📍 SAVE SPOT", Color3.fromRGB(100, 100, 100))
+    local SaveSlotBtn = CreateMacroBtn("SaveSlotBtn", "💾 SAVE SLOT", Color3.fromRGB(50, 50, 150))
+    local LoadSlotBtn = CreateMacroBtn("LoadSlotBtn", "📂 LOAD SLOT", Color3.fromRGB(50, 50, 150))
+
+    local timerLabel = Instance.new("TextLabel", frame)
+    timerLabel.Position = UDim2.fromOffset(10, 185) -- Moved down
+    timerLabel.Size = UDim2.new(1,-20,0,30)
+    timerLabel.BackgroundTransparency = 1
+    timerLabel.Font = Enum.Font.GothamBold
+    timerLabel.TextSize = 14
+    timerLabel.TextColor3 = Color3.fromRGB(0,255,0)
+    timerLabel.Text = "Idle"
+
+    RunService.RenderStepped:Connect(function()
+        if recording then
+            timerLabel.Text = string.format("🔴 Recording: %.2fs", tick() - macroStartTime)
+            timerLabel.TextColor3 = Color3.fromRGB(255,50,50)
+        elseif not playing then
+            if timerLabel.Text ~= "Idle" and not string.find(timerLabel.Text, "Starting") and not string.find(timerLabel.Text, "Playing") and not string.find(timerLabel.Text, "Replay") and not string.find(timerLabel.Text, "Waiting") then
+                timerLabel.Text = "Idle"
+                timerLabel.TextColor3 = Color3.fromRGB(200,200,200)
+            end
+        end
+    end)
+
+    -- ===============================
+    -- IMPROVED SAVE / LOAD DIALOG SYSTEM
+    -- ===============================
+    local SelectionFrame = Instance.new("Frame", gui) 
+    SelectionFrame.Size = UDim2.fromOffset(300, 300) 
+    SelectionFrame.Position = UDim2.fromScale(0.5, 0.5)
+    SelectionFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+    SelectionFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    SelectionFrame.Visible = false
+    SelectionFrame.ZIndex = 100 
+    SelectionFrame.BorderSizePixel = 0
+    Instance.new("UICorner", SelectionFrame).CornerRadius = UDim.new(0, 10)
+
+    local SelTitle = Instance.new("TextLabel", SelectionFrame)
+    SelTitle.Size = UDim2.new(1, 0, 0, 40)
+    SelTitle.Text = "Select Slot"
+    SelTitle.Font = Enum.Font.GothamBold
+    SelTitle.TextSize = 18
+    SelTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+    SelTitle.BackgroundTransparency = 1
+    SelTitle.ZIndex = 101 
+
+    local CurrentMode = "NONE"
+
+    local function CloseSelection()
+        SelectionFrame.Visible = false
+        CurrentMode = "NONE"
+    end
+
+    local function PerformAction(slotIndex)
+        local filename = "titan_macro_slot" .. slotIndex .. ".json"
+          
+        if CurrentMode == "SAVE" then
+            if #recordedActions == 0 and not SavedSpot then
+                ShowNotification("❌ Nothing to Save!")
+            else
+                local success, err = pcall(function()
+                    local dataToSave = {
+                        Actions = recordedActions,
+                        Spot = SavedSpot and {X = SavedSpot.X, Y = SavedSpot.Y, Z = SavedSpot.Z} or nil
+                    }
+                    local json = HttpService:JSONEncode(dataToSave)
+                    writefile(filename, json)
+                end)
+                if success then
+                    ShowNotification("✅ Saved to Slot " .. slotIndex)
+                else
+                    ShowNotification("❌ Save Failed")
+                end
+            end
+
+        elseif CurrentMode == "LOAD" then
+            if isfile and isfile(filename) then
+                local success, content = pcall(function()
+                    return readfile(filename)
+                end)
+                  
+                if success and content then
+                    local decoded = HttpService:JSONDecode(content)
+                      
+                    if decoded.Actions then
+                        recordedActions = decoded.Actions
+                        if decoded.Spot then
+                            SavedSpot = Vector3.new(decoded.Spot.X, decoded.Spot.Y, decoded.Spot.Z)
+                            ShowNotification("✅ Loaded Slot " .. slotIndex .. " + Spot")
+                        else
+                            SavedSpot = nil
+                            ShowNotification("✅ Loaded Slot " .. slotIndex .. " (No Spot)")
+                        end
+                    else
+                        recordedActions = decoded
+                        SavedSpot = nil
+                        ShowNotification("✅ Loaded (Old Format)")
+                    end
+                      
+                    macroRecorded = true
+                    LastLoadedSlot = slotIndex 
+                    SaveState() 
+                else
+                    ShowNotification("❌ Load Failed (Corrupt)")
+                end
+            else
+                ShowNotification("⚠️ Slot " .. slotIndex .. " is Empty")
+            end
+        end
+        CloseSelection()
+    end
+
+    for i = 1, 3 do
+        local btn = Instance.new("TextButton", SelectionFrame)
+        btn.Size = UDim2.new(0.9, 0, 0, 40)
+        btn.Position = UDim2.new(0.05, 0, 0, 50 + ((i - 1) * 50))
+        btn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+        btn.Text = "Macro Slot " .. i
+        btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        btn.Font = Enum.Font.GothamSemibold
+        btn.TextSize = 14
+        btn.ZIndex = 101 
+        Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+          
+        local slot = i
+        btn.MouseButton1Click:Connect(function()
+            PerformAction(slot)
+        end)
+    end
+      
+    local CancelBtn = Instance.new("TextButton", SelectionFrame)
+    CancelBtn.Size = UDim2.new(0.4, 0, 0, 35) 
+    CancelBtn.Position = UDim2.new(0.3, 0, 0.82, 0)
+    CancelBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+    CancelBtn.Text = "Cancel"
+    CancelBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    CancelBtn.Font = Enum.Font.GothamBold
+    CancelBtn.TextSize = 14
+    CancelBtn.ZIndex = 101
+    Instance.new("UICorner", CancelBtn).CornerRadius = UDim.new(0, 6)
+    CancelBtn.MouseButton1Click:Connect(CloseSelection)
+
+
+    local function SendWebhook(msg, sendScreenshot)
+        if WebhookURL == "" then
+            return
+        end
+        local req = http_request or request or syn and syn.request
+        if not req then
+            return
+        end
+        if not sendScreenshot then
+            req({
+                Url = WebhookURL,
+                Method = "POST",
+                Headers = { ["Content-Type"] = "application/json" },
+                Body = game:GetService("HttpService"):JSONEncode({ content = msg })
+            })
+            return
+        end
+          
+        local screenshot
+        if typeof(captureviewport) == "function" then screenshot = captureviewport()
+        elseif typeof(getscreenshot) == "function" then screenshot = getscreenshot()
+        elseif syn and syn.take_screenshot then screenshot = syn.take_screenshot()
+        else
+            req({
+                Url = WebhookURL,
+                Method = "POST",
+                Headers = { ["Content-Type"] = "application/json" },
+                Body = game:GetService("HttpService"):JSONEncode({
+                    content = "📸 Screenshot Failed (Executor has no screenshot API)\n" .. msg
+                })
+            })
+            return
+        end
+
+        req({
+            Url = WebhookURL,
+            Method = "POST",
+            Files = { file1 = { Name = "macro.png", Data = screenshot, ContentType = "image/png" } },
+            Body = { content = msg }
+        })
+        ShowNotification("📸 Screenshot Sent")
+    end
+
+    local loopBox = Instance.new("TextButton", frame)
+    loopBox.Size = UDim2.fromOffset(22,22)
+    loopBox.Position = UDim2.fromOffset(245, 180) -- Moved down
+    loopBox.BackgroundColor3 = Color3.fromRGB(50,50,50)
+    loopBox.Text = ""
+    loopBox.TextColor3 = Color3.new(1,1,1)
+      
+    local loopText = Instance.new("TextLabel", frame)
+    loopText.Position = UDim2.fromOffset(180, 180) -- Moved down
+    loopText.Size = UDim2.fromOffset(60,22)
+    loopText.BackgroundTransparency = 1
+    loopText.Text = "Loop"
+    loopText.Font = Enum.Font.GothamBold
+    loopText.TextSize = 14
+    loopText.TextColor3 = Color3.fromRGB(255,255,255)
+
+    local checked = false
+    loopBox.MouseButton1Click:Connect(function()
+        checked = not checked
+        loopEnabled = checked
+        if checked then loopBox.BackgroundColor3 = Color3.fromRGB(0,180,0)
+        else loopBox.BackgroundColor3 = Color3.fromRGB(50,50,50) end
+        SaveState() 
+    end)
+
+    local webhookBox = Instance.new("TextBox", frame)
+    webhookBox.Size = UDim2.new(1,-20,0,22)
+    webhookBox.Position = UDim2.fromOffset(10, 210) -- Moved down
+    webhookBox.PlaceholderText = "Paste Discord Webhook URL..."
+    webhookBox.Text = ""
+    webhookBox.TextSize = 12
+    webhookBox.BackgroundColor3 = Color3.fromRGB(40,40,40)
+    webhookBox.TextColor3 = Color3.fromRGB(255,255,255)
+    webhookBox.ClearTextOnFocus = false
+    webhookBox.TextWrapped = false
+    webhookBox.ClipsDescendants = true
+
+    local saveBtn = Instance.new("TextButton", frame)
+    saveBtn.Size = UDim2.fromOffset(80,22)
+    saveBtn.Position = UDim2.fromOffset(10, 235) -- Moved down
+    saveBtn.Text = "Save"
+    saveBtn.BackgroundColor3 = Color3.fromRGB(0,120,0)
+    saveBtn.TextColor3 = Color3.new(1,1,1)
+
+    saveBtn.MouseButton1Click:Connect(function()
+        WebhookURL = webhookBox.Text
+        ShowNotification("Webhook Saved!")
+    end)
+
+    local testBtn = Instance.new("TextButton", frame)
+    testBtn.Size = UDim2.fromOffset(140,22)
+    testBtn.Position = UDim2.fromOffset(100, 235) -- Moved down
+    testBtn.Text = "Test Webhook"
+    testBtn.BackgroundColor3 = Color3.fromRGB(0,90,180)
+    testBtn.TextColor3 = Color3.new(1,1,1)
+
+    testBtn.MouseButton1Click:Connect(function()
+        SendWebhook("📸 Screenshot from Titan Macro v1!", true)
+    end)
+
+    local function getMacroDuration()
+        if #recordedActions == 0 then return 0 end
+        return recordedActions[#recordedActions].t
+    end
+
+    local function formatTime(sec)
+        local hours = math.floor(sec / 3600)
+        sec = sec % 3600
+        local mins = math.floor(sec / 60)
+        local secs = math.floor(sec % 60)
+        if hours > 0 then return string.format("%dh %dm %ds", hours, mins, secs)
+        elseif mins > 0 then return string.format("%dm %ds", mins, secs)
+        else return string.format("%ds", secs) end
+    end
+
+    -- [[ MODIFIED PLAY FUNCTION WITH GHOST MODE ]] --
+    local function playMacro()
+        if not macroRecorded then ShowNotification("⚠️ No Macro Recorded!") return end
+        if #recordedActions == 0 then ShowNotification("⚠️ Empty Macro") return end
+        if playing then ShowNotification("⚠️ Already Playing") return end
+
+        playing = true
+        ToggleGhostMode(true) -- ENABLE GHOST MODE WHEN STARTING
+        PlayBtn.Text = "⛔ STOP"
+        PlayBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+         
+        task.spawn(function()
+            repeat
+                -- [[ 10 SECOND WAIT ONLY IF LOOP IS ENABLED ]] --
+                if loopEnabled then
+                    ShowNotification("⏳ Loop Active: Waiting 10s...")
+                    for i = 10, 1, -1 do
+                        if not playing then break end -- Exit if stopped manually
+                        timerLabel.Text = "⏳ Starting in: " .. i .. "s"
+                        timerLabel.TextColor3 = Color3.fromRGB(255, 200, 50)
+                        task.wait(1)
+                    end
+                end
+                 
+                if not playing then break end -- Exit if stopped
+
+                -- [[ START MACRO PLAYBACK ]] --
+                playStartTime = tick()
+                totalMacroTime = 0 
+                 
+                timerLabel.Text = "▶️ Playing..."
+                timerLabel.TextColor3 = Color3.fromRGB(50, 255, 50)
+
+                UIS.MouseBehavior = Enum.MouseBehavior.Default
+                local lastTime = 0
+
+                for _, a in ipairs(recordedActions) do
+                    if not playing then break end
+                    local delay = math.max(0, a.t - lastTime)
+                    if delay > 0 then task.wait(delay) end
+                    lastTime = a.t
+
+                    if a.type == "key_down" then 
+                        local k = Enum.KeyCode[a.key]
+                        VIM:SendKeyEvent(true, k, false, game)
+                    elseif a.type == "key_up" then 
+                        local k = Enum.KeyCode[a.key]
+                        VIM:SendKeyEvent(false, k, false, game)
+                    elseif a.type == "mouse_move" then 
+                        VIM:SendMouseMoveEvent(a.x, a.y, game)
+                    elseif a.type == "mouse_down" then
+                        VIM:SendMouseMoveEvent(a.x, a.y, game)
+                        task.wait(0.02)
+                        local isRight = (a.button == "MouseButton2") and 1 or 0
+                        VIM:SendMouseButtonEvent(a.x, a.y, isRight, true, game, 1)
+                    elseif a.type == "mouse_up" then
+                        local isRight = (a.button == "MouseButton2") and 1 or 0
+                        VIM:SendMouseButtonEvent(a.x, a.y, isRight, false, game, 1)
+                    end
+                end
+                 
+                task.wait(0.2)
+                 
+                -- [[ AUTO REPLAY CLICKER (Coordinate Based) ]] --
+                if loopEnabled and playing then
+                    -- ===========================================
+                    -- 🛑 WAIT FOR VICTORY / DEFEAT SOUND IN STORAGE
+                    -- ===========================================
+                    timerLabel.Text = "⏳ Waiting for End..."
+                    timerLabel.TextColor3 = Color3.fromRGB(255, 170, 0)
+                    ShowNotification("⏳ Waiting for Game to End...")
+                      
+                    local gameEnded = false
+                    local waitStart = tick()
+                      
+                    repeat
+                        if not playing then break end
+                        -- FIXED: Look for Sound Objects in ReplicatedStorage
+                        if ReplicatedStorage:FindFirstChild("Victory") or ReplicatedStorage:FindFirstChild("Defeat") then
+                            gameEnded = true
+                        end
+                        task.wait(1)
+                    until gameEnded or (tick() - waitStart > 300) -- Wait up to 5 mins
+                      
+                    if not playing then break end
+
+                    -- ===========================================
+                    -- ✅ GAME END DETECTED -> CLICK REPLAY
+                    -- ===========================================
+                    task.wait(1) -- Wait 1s for GUI to appear
+                    timerLabel.Text = "🔄 Replay: " .. REPLAY_X .. ", " .. REPLAY_Y
+                    timerLabel.TextColor3 = Color3.fromRGB(0, 255, 255)
+                    ShowNotification("🔄 Game Over! Clicking Replay...")
+                      
+                    -- IMPORTANT: SAVE STATE BEFORE TELEPORTING
+                    SaveState()
+
+                    -- Try clicking for 5 seconds (to ensure we hit it)
+                    for i = 1, 5 do
+                        if not playing then break end
+                          
+                        -- Click Down
+                        VIM:SendMouseButtonEvent(REPLAY_X, REPLAY_Y, 0, true, game, 1)
+                        task.wait(0.05)
+                        -- Click Up
+                        VIM:SendMouseButtonEvent(REPLAY_X, REPLAY_Y, 0, false, game, 1)
+                          
+                        task.wait(1) 
+                    end
+                end
+
+                macroRuns = macroRuns + 1
+                local duration = getMacroDuration()
+                totalMacroTime = totalMacroTime + duration
+                local msg = string.format("Macro info:\nTotal runs 🔰: %d\nTotal time 🕘: %s", macroRuns, formatTime(totalMacroTime))
+
+                if WebhookURL ~= "" then SendWebhook(msg, false) end
+
+            until not loopEnabled or not playing
+
+            playing = false
+            ToggleGhostMode(false) -- DISABLE GHOST MODE WHEN STOPPED
+            PlayBtn.Text = "▶️ PLAY"
+            PlayBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
+            timerLabel.Text = "Idle"
+            timerLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+        end)
+    end
+
+    local function testAutoWalkAndCamera()
+        ShowNotification("🚶 Auto-Walking...")
+        local char, hum, root = getChar()
+        if not char or not hum or not root then return end
+
+        local rayParams = RaycastParams.new()
+        rayParams.FilterType = Enum.RaycastFilterType.Blacklist
+        rayParams.FilterDescendantsInstances = {char}
+        local target = SavedSpot or DESTINATION
+        local rayResult = Workspace:Raycast(target + Vector3.new(0, 50, 0), Vector3.new(0, -200, 0), rayParams)
+        local groundPos = target
+        if rayResult then groundPos = rayResult.Position + Vector3.new(0, 3, 0) end
+
+        local startTime = tick()
+        while true do
+            if tick() - startTime > 20 then break end
+            local pos = root.Position
+            local flatDist = (Vector2.new(pos.X, pos.Z) - Vector2.new(groundPos.X, groundPos.Z)).Magnitude
+            if flatDist <= 3 then break end
+              
+            hum:MoveTo(groundPos) 
+              
+            task.wait()
+        end
+
+        ShowNotification("📹 Fixing Camera...")
+        task.wait(0.2)
+        local currentCam = Workspace.CurrentCamera
+        currentCam.CameraType = Enum.CameraType.Scriptable
+        currentCam.CFrame = CFrame.new(groundPos + Vector3.new(0, 25, 0), groundPos)
+          
+        task.wait(0.3)
+        currentCam.CameraType = Enum.CameraType.Custom
+        for i = 1, 10 do
+            VIM:SendMouseWheelEvent(0, 0, false, game) 
+            task.wait(0.05)
+        end
+    end
+
+    local lastMouseRecord = 0
+    local MOUSE_INTERVAL = 0.015
+    UIS.InputBegan:Connect(function(input, gp)
+        if not recording then return end
+        local t = tick() - macroStartTime
+        if input.UserInputType == Enum.UserInputType.Keyboard then
+             -- No F-Keys to exclude now, but excluding other GUI inputs if needed
+             table.insert(recordedActions,{ t = t, type = "key_down", key = input.KeyCode.Name })
+        end
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.MouseButton2 then
+            local pos = UIS:GetMouseLocation()
+            table.insert(recordedActions,{ t = t, type = "mouse_down", button = input.UserInputType.Name, x = pos.X, y = pos.Y })
+        end
+    end)
+
+    UIS.InputEnded:Connect(function(input,gp)
+        if not recording then return end
+        local t = tick() - macroStartTime
+        if input.UserInputType == Enum.UserInputType.Keyboard then
+             table.insert(recordedActions,{ t = t, type = "key_up", key = input.KeyCode.Name })
+        end
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.MouseButton2 then
+            local pos = UIS:GetMouseLocation()
+            table.insert(recordedActions,{ t = t, type = "mouse_up", button = input.UserInputType.Name, x = pos.X, y = pos.Y })
+        end
+    end)
+
+    UIS.InputChanged:Connect(function(input,gp)
+        if not recording then return end
+        if input.UserInputType ~= Enum.UserInputType.MouseMovement then return end
+        local now = tick()
+        if now - lastMouseRecord < MOUSE_INTERVAL then return end
+        lastMouseRecord = now
+        local pos = UIS:GetMouseLocation()
+        table.insert(recordedActions,{ t = now - macroStartTime, type = "mouse_move", x = pos.X, y = pos.Y })
+    end)
+
+    -- [[ BUTTON CONNECTIONS ]] --
+    
+    -- RECORD BUTTON
+    RecBtn.MouseButton1Click:Connect(function()
+        if not recording then
+            -- STARTING RECORDING... CHECK FOR SPOT FIRST!
+            if SavedSpot == nil then
+                ShowNotification("⚠️ STEP 1: Click 'SAVE SPOT' first!")
+                ShowNotification("📍 You cannot record without a starting spot.")
+                return -- STOP HERE
+            end
+            
+            recording = true
+            recordedActions = {}
+            macroStartTime = tick()
+            ShowNotification("🔴 Recording Started")
+            RecBtn.Text = "STOP REC"
+            RecBtn.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
+        else
+            -- STOPPING RECORDING
+            recording = false
+            macroRecorded = true
+            ShowNotification("💾 Macro Recorded")
+            RecBtn.Text = "🔴 REC"
+            RecBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+        end
+    end)
+    
+    -- PLAY BUTTON
+    PlayBtn.MouseButton1Click:Connect(function()
+        if playing then 
+            playing = false 
+            ShowNotification("🛑 Stopped")
+            PlayBtn.Text = "▶️ PLAY"
+            PlayBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
+        else 
+            task.spawn(playMacro) 
+        end
+    end)
+
+    -- AUTO WALK BUTTON
+    WalkBtn.MouseButton1Click:Connect(function()
+        task.spawn(testAutoWalkAndCamera)
+    end)
+
+    -- SAVE SPOT BUTTON
+    SpotBtn.MouseButton1Click:Connect(function()
+        local _, _, root = getChar()
+        SavedSpot = root.Position
+        ShowNotification(string.format("📍 Spot Saved: %.0f, %.0f", SavedSpot.X, SavedSpot.Z))
+    end)
+
+    -- SAVE SLOT MENU
+    SaveSlotBtn.MouseButton1Click:Connect(function()
+        SelectionFrame.Visible = true
+        SelTitle.Text = "Select Slot to SAVE"
+        CurrentMode = "SAVE"
+    end)
+
+    -- LOAD SLOT MENU
+    LoadSlotBtn.MouseButton1Click:Connect(function()
+        SelectionFrame.Visible = true
+        SelTitle.Text = "Select Slot to LOAD"
+        CurrentMode = "LOAD"
+    end)
+
+    -- [[ AUTO-RESUME LOGIC (Wait for Character) ]] --
+    if isfile and isfile(StateFile) then
+        local success, stateData = pcall(function() return HttpService:JSONDecode(readfile(StateFile)) end)
+        if success and stateData and stateData.IsLooping and stateData.Slot then
+              
+            ShowNotification("⏳ Waiting for Character Load...")
+              
+            -- WAIT FOR GAME TO FULLY LOAD
+            if not game:IsLoaded() then game.Loaded:Wait() end
+              
+            -- WAIT FOR CHARACTER & ROOT PART
+            local char = lp.Character or lp.CharacterAdded:Wait()
+            local root = char:WaitForChild("HumanoidRootPart", 60) -- Wait up to 60 seconds
+              
+            -- WAIT 3 SECONDS AFTER CHARACTER LOADS FOR GUI TO SETTLE
+            task.wait(3)
+              
+            ShowNotification("✅ Character Loaded! Resuming Loop...")
+              
+            CurrentMode = "LOAD" 
+            PerformAction(stateData.Slot) 
+              
+            checked = true
+            loopEnabled = true
+            loopBox.BackgroundColor3 = Color3.fromRGB(0,180,0)
+              
+            task.spawn(playMacro)
+        end
+    end
+end
